@@ -1,7 +1,14 @@
-from os import path, makedirs
-#TODO: Manage dependencies?
+import os; from os import path, makedirs, listdir
 import json
 import helper
+import dice, character, parse_json
+
+#TODO: I have decided to refactor this whole project to use a sqlite db in the backend
+#TODO: Replace ACTIVE_CHAR with Character Caching completely 
+
+PLAYER_CHARACTER_CACHE = {
+    #player_id: selectedCharacterObject
+}
 
 MAX_CHAR_FILE_SIZE = {
     'INT': 1024 * 100,
@@ -27,14 +34,15 @@ def validate_user_id(user_id:str, verbose:bool = True) -> bool:
         return False
     return True
 
-def create_file_if_not_exists(file_name:str) -> None:
+#TODO: rework
+def create_file_if_not_exists(file_name:str, file_path:str = RES_PATH) -> None:
     #TODO: implement sepearte sanitize_file_name function?
     file_name = file_name.replace('..', '')
     file_name = file_name.replace('\\', '')
     file_name = file_name.replace('/', '')
     file_name = file_name.replace(':', '')
     
-    file_path = path.join(RES_PATH, file_name)
+    file_path = path.join(file_path, file_name)
     if not path.exists(file_path):
         print(f"{file_name} file does not exist!")
         print(f"Creating {file_path}")
@@ -72,8 +80,6 @@ def setup_res() -> None:
 def create_player_dir(id:int) -> None:
     makedirs(path.join(RES_PATH, 'Players'), exist_ok=True)
     makedirs(path.join(RES_PATH, 'Players', str(id)), exist_ok=True)
-
-
 
 #TODO: make function that only returns valid masters?
 def load_masters() -> list:
@@ -238,5 +244,51 @@ REPLIES_ADD_CHAR = {
     2: "ERROR: Failed to write character file",
     127: "ERROR: Unexpected failure for adding"
 }  
+
+def list_characters(player_id:int):
+    player_dir = path.join(RES_PATH, 'Players', str(player_id))
+    if not path.exists(player_dir):
+        raise FileNotFoundError
+    return listdir(player_dir)
+
+def change_character(player_id:int, character_file_name:str) -> None:
+    create_player_dir(player_id)
+    player_dir = path.join(RES_PATH, 'Players', str(player_id))
+    create_file_if_not_exists('ACTIVE_CHAR', player_dir)
+    if character_file_name not in listdir(player_dir):
+        raise FileNotFoundError #CharacterNotFoundError
+    with open(path.join(player_dir, 'ACTIVE_CHAR'), 'w') as f: 
+        f.write(character_file_name)
+
+def get_player_character(player_id:int) -> str:
+    player_dir = path.join(RES_PATH, 'Players', str(player_id))
+    if not path.exists(player_dir):
+        create_player_dir(player_id)
+        raise FileNotFoundError
+    active_char_path = path.join(player_dir, 'ACTIVE_CHAR')
+    if not path.exists(active_char_path):
+        raise FileNotFoundError
+    with open(active_char_path, 'r') as file:
+        return file.readline().replace('\n', '')
+
+def remove_player_character(player_id:int, character_file_name:str) -> None:
+    player_dir = path.join(RES_PATH, 'Players', str(player_id))
+    if not path.exists(player_dir):
+        create_player_dir(player_id)
+        raise FileNotFoundError
+    os.remove(path.join(player_dir, character_file_name))
+
+def cache_player_character(player_id:int) -> None:   
+    player_dir = path.join(RES_PATH, 'Players', str(player_id))
+    file_name = get_player_character(player_id)
+    PLAYER_CHARACTER_CACHE[player_id] = character.Abenteurer(
+        parse_json.get_json_from_file(
+            path.join(player_dir, file_name)
+        )
+    )
+
+def dice_roll_string(times:int, size:int) -> str:
+    return f"Roll {times}d{size} = {dice.ROLL_DICE(times, size)}"
+
 if __name__ == '__main__':
     exit()
