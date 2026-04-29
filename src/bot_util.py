@@ -1,13 +1,23 @@
+from bot_exceptions import BotWarning
+from bot_exceptions import BotException
+#TODO: replace with pathlib?
 import os; from os import path, makedirs, listdir
 import json
 import helper
 import dice, character, parse_json
+import bot_exceptions as exc
 
-#TODO: I have decided to refactor this whole project to use a sqlite db in the backend
-#TODO: Replace ACTIVE_CHAR with Character Caching completely 
+#INFO: DO NOT DECLARE NEW CONSTANTS IN constants.py AS IT IS DOWNSTREAM OF MY OTHER PROJECT AND WILL BE REPLACED AFTER EACH UPDATE
 
-PLAYER_CHARACTER_CACHE = {
-    #player_id: selectedCharacterObject
+#TODO: Use a SQLite db in the backend for everything instead of the dir files?
+#Replace ACTIVE_CHAR with Character Caching completely? 
+
+ERROR_MESSAGES_SILENT_REPLY_DEFAULT = True
+UNEXPECTED_ERROR_DEFAULT_TEXT = 'UNEXPECTED ERROR'
+
+PLAYER_CHARACTER_CACHE ={
+    #INFO: key -> val 
+    #player_id -> characterObject
 }
 
 MAX_CHAR_FILE_SIZE = {
@@ -24,6 +34,7 @@ WARNING_NOT_A_PLAYER = "You are not registered in the PLAYER file. Ask a registe
 
 def validate_user_id(user_id:str, verbose:bool = True) -> bool:
     #INFO: I don't know the exact user ID length constraints, but they appear to me as 17-19 digits
+    #TODO: Exception messages
     if len(user_id) >= 20 or len(user_id) <= 16:
         if verbose:
             print(f'WARNING: User ID <{user_id}> is invalid length (17 - 19 digits)')
@@ -106,149 +117,81 @@ def check_player(user_id:int) -> bool:
                 return True
     return False
 
-#TODO: replace int return codes with ExceptionClasses >:/
-#Is this function over-engineered?
-#TODO: find fitting Exceptions and remove inner try blocks
-def add_player(id:int) -> int:
+
+def add_player(id:int) -> None:
+    create_player_dir(id)
+    create_file_if_not_exists('ACTIVE_PLAYER')
+
+    if not validate_user_id(str(id)):
+        raise exc.UserIdError(id)
+    if check_player(id):
+        raise exc.BotWarning(f"Player <{id}> already added")
+        
     try:
-        try:
-            create_player_dir(id)
-        except Exception as e:
-            print(e)
-            return 1 #FAILED TO CREATE DIR
+        with open(path.join(RES_PATH, 'ACTIVE_PLAYER'), 'a+') as file:
+            file.write(f"{id}\n")
+    except:
+        raise BotException(f"Could not append ACTIVE_PLAYER file for <{id}>")
 
+    return
+
+def remove_player(id:int, remove_player_dir:bool = False) -> None:
+    active_player_path = path.join(RES_PATH, 'ACTIVE_PLAYER')
+        
+    #TODO: clear/remvoe dir option? 
+    if remove_player_dir:
+        print("Clear directory not implemented yet")
         players_dir_path = path.join(RES_PATH, 'Players')
         player_path = path.join(players_dir_path, str(id))
-        create_file_if_not_exists('ACTIVE_PLAYER')
+        #clear_dir()
 
-        if not validate_user_id(str(id)):
-            return 2 #USER ID INVALID
-        
+    if not path.exists(active_player_path):
         try:
-            if check_player(id):
-                return 3 #PLAYER ALREADY ADDED
-        except Exception as e:
-            print(e)
-            return 4 #FAILED TO READ FILE
-        try:
-            with open(path.join(RES_PATH, 'ACTIVE_PLAYER'), 'a+') as file:
-                file.write(f"{id}\n")
-        except Exception as e:
-            print(e)
-            return 5 #FAILED TO APPEND FILE
-        
-        return 0 #SUCCESS
+            file = open(active_player_path, 'x'); file.close() 
+            raise exc.BotException('ACTIVE_PLAYER FILE DID NOT EXIST. CREATED SUCCESSFULLY')
+        except:
+            raise exc.BotException('ACTIVE_PLAYER FILE DID NOT EXIST. COULD NOT CREATE FILE')
 
-    except Exception as e:
-        print(e)
-        return 127 #UNEXPECTED ERROR
+    if not validate_user_id(str(id)): raise exc.UserIdError(id)
 
-REPLIES_ADD_PLAYER = {
-    0: "SUCCESS: Registered",
-    1: "ERROR: Failed to create directory for",
-    2: "ERROR: Invalid User ID", #This cant possibly happen according to my code (yet)
-    3: "ERROR: Already added Player",
-    4: "ERROR: Failed to read ACTIVE_PLAYER file for",
-    5: "ERROR: Failed to append ACTIVE_PLAYER file for",
-    127: "ERROR: Unexpected failure for adding"
-}  
-
-def remove_player(id:int) -> int:
-    try:        
-        active_player_path = path.join(RES_PATH, 'ACTIVE_PLAYER')
-        players_dir_path = path.join(RES_PATH, 'Players')
-        player_path = path.join(players_dir_path, str(id))
-        
-        if not path.exists(active_player_path):
-            try:
-                file = open(active_player_path, 'x'); file.close() 
-                return 1 #ACTIVE_PLAYER FILE DOES NOT EXIST!
-            except Exception as e:
-                print(e)
-                return 2 #ACTIVE_PLAYER DOES NOT EXIST AND COULD NOT CREATE
-
-        if not path.exists(players_dir_path):
-            try:
-                makedirs(players_dir_path)
-                return 3 #PLAYERS DIR DOES NOT EXIST
-            except:
-                print(e)
-                return 4 #PLAYERS DIR DOES NOT EXIST AND COULD NOT CREATE            
-        
-        if not validate_user_id(str(id)):
-            return 5 #USER ID INVALID
-        
-        playerFound = False
-        try:
-            with open(active_player_path, 'r+') as file:
-                lines = file.readlines()
-                #TODO: Add a safety mechanism for truncate()
-                file.truncate(0)
-                for line in lines:
-                    line = line.replace('\n', '')
-                    if line == str(id):
-                        playerFound = True
-                    else:
-                        file.write(line + '\n')
-        except Exception as e:
-            print(e)
-            return 6 #FAILED TO MODIFY FILE
-        
-        if playerFound:
-            return 0 #SUCCESS
-        else:
-            return 7 #PLAYER NOT IN FILE
-    except Exception as e:
-        print(e)
-        return 127 #UNEXPECTED ERROR
-
-REPLIES_REMOVE_PLAYER = {
-    0: "SUCCESS: Removed player",
-    1: "ERROR: ACTIVE_PLAYER file does not exist. Created file. Could not remove",
-    2: "ERROR: ACTIVE_PLAYER file does not exist. Could not create file. Could not remove",
-    3: "ERROR: Players dir does not exist. Created dir. Could not remove",
-    4: "ERROR: Players dir does not exist. Could not create dir. Could not remove",
-    5: "ERROR: Invalid User ID", #This cant possibly happen according to my code (yet)
-    6: "ERROR: Failed to modify ACTIVE_PLAYER file for",
-    7: "ERROR: File did not contain Player",
-    127: "ERROR: Unexpected failure for adding"
-}  
-
-def add_character(id:int, file_name:str, json_object:dict):        
+    player_found = False
     try:
-        players_dir_path = path.join(RES_PATH, 'Players')
-        player_path = path.join(players_dir_path, str(id))
-        character_path = path.join(player_path, file_name)
-        
-        if path.exists(character_path):
-            return 1 #CHARACTER ALREADY EXISTS
-
-        json_object = helper.recursive_dict_merge(helper.create_empty_json(), json_object)
-        try:
-            with open(character_path, 'w') as file:
-                file.write(json.dumps(json_object))
-        #TODO: Differenciate Excpetions
-        except Exception as e:
-            print(e)
-            return 2 #FAILED TO WRITE CHARACTER FILE
-        
-        return 0 #SUCCESS
-
+        with open(active_player_path, 'r+') as file:
+            lines = file.readlines()
+            #TODO: Add a safety mechanism for truncate()
+            file.seek(0)
+            file.truncate(0)
+            for line in lines:
+                line = line.replace('\n', '')
+                if line == str(id):
+                    player_found = True
+                else:
+                    file.write(line + '\n')
     except Exception as e:
-        print(e)
-        return 127 #UNEXPECTED ERROR
+        raise exc.BotException('FAILED TO MODIFY ACTIVE_PLAYER FILE')
+    
+    if not player_found: raise exc.BotWarning('PLAYER NOT FOUND IN ACTIVE_PLAYER')
+    
+    return
 
-REPLIES_ADD_CHAR = {
-    0: "SUCCESS: Uploaded character",
-    1: "ERROR: Character already exists",
-    2: "ERROR: Failed to write character file",
-    127: "ERROR: Unexpected failure for adding"
-}  
+def add_character(id:int, file_name:str, json_object:dict) -> None: 
+    players_dir_path = path.join(RES_PATH, 'Players')
+    player_path = path.join(players_dir_path, str(id))
+    character_path = path.join(player_path, file_name)
+    
+    if path.exists(character_path):
+        raise exc.BotException(f"Character {file_name} already exists")
+
+    json_object = helper.recursive_dict_merge(helper.create_empty_json(), json_object)
+    with open(character_path, 'w') as file:
+        file.write(json.dumps(json_object))
+    
+    return
 
 def list_characters(player_id:int):
     player_dir = path.join(RES_PATH, 'Players', str(player_id))
     if not path.exists(player_dir):
-        raise FileNotFoundError
+        raise exc.DirectoryNotFoundError(player_dir)
     return listdir(player_dir)
 
 def change_character(player_id:int, character_file_name:str) -> None:
@@ -256,32 +199,31 @@ def change_character(player_id:int, character_file_name:str) -> None:
     player_dir = path.join(RES_PATH, 'Players', str(player_id))
     create_file_if_not_exists('ACTIVE_CHAR', player_dir)
     if character_file_name not in listdir(player_dir):
-        raise FileNotFoundError #CharacterNotFoundError
+        raise exc.CharacterNotFoundError(character_file_name)
     with open(path.join(player_dir, 'ACTIVE_CHAR'), 'w') as f: 
         f.write(character_file_name)
 
 def get_player_character(player_id:int) -> str:
     player_dir = path.join(RES_PATH, 'Players', str(player_id))
     if not path.exists(player_dir):
-        create_player_dir(player_id)
-        raise FileNotFoundError
+        raise exc.PlayerDirectoryNotFoundError(f"")
+    
     active_char_path = path.join(player_dir, 'ACTIVE_CHAR')
     if not path.exists(active_char_path):
-        raise FileNotFoundError
+        raise exc.ResFileNotFoundError('ACTIVE_CHAR')
     with open(active_char_path, 'r') as file:
         return file.readline().replace('\n', '')
 
 def remove_player_character(player_id:int, character_file_name:str) -> None:
     player_dir = path.join(RES_PATH, 'Players', str(player_id))
     if not path.exists(player_dir):
-        create_player_dir(player_id)
-        raise FileNotFoundError
+        raise exc.PlayerDirectoryNotFoundError(player_id)
     os.remove(path.join(player_dir, character_file_name))
 
 def cache_player_character(player_id:int) -> None:   
     player_dir = path.join(RES_PATH, 'Players', str(player_id))
     file_name = get_player_character(player_id)
-    PLAYER_CHARACTER_CACHE[player_id] = character.Abenteurer(
+    PLAYER_CHARACTER_CACHE[player_id] = character.Character(
         parse_json.get_json_from_file(
             path.join(player_dir, file_name)
         )
