@@ -23,26 +23,41 @@ async def check_user(client: dc.Client, user_id:str) -> bool:
 
 async def check_master_respond(interaction: dc.Interaction) -> bool:
     if not (bot.check_master(interaction.user.id)):
-        await interaction.followup.send(bot.WARNING_NOT_A_MASTER, ephemeral=True)
+        await interaction.followup.send(bot.WARNING_NOT_A_MASTER, ephemeral=ESR_DEFAULT)
         return False
     else:
         return True
 
 async def check_player_or_master_respond(interaction: dc.Interaction, player: dc.Member, silent_reply:bool = True) -> bool:
-    if not bot.check_player(player.id):
-        await interaction.followup.send(bot.WARNING_NOT_A_PLAYER, ephemeral=silent_reply)
-        return False
-    if not interaction.user.id == player.id:
-        if not bot.check_master(interaction.user.id):
-            await interaction.followup.send(bot.WARNING_NOT_A_MASTER, ephemeral=silent_reply)
+    if interaction.user.id == player.id:
+        if not bot.check_player(player.id):
+            await interaction.followup.send(bot.WARNING_NOT_A_PLAYER, ephemeral=ESR_DEFAULT)
             return False
+    else:
+        if not bot.check_master(interaction.user.id):
+            await interaction.followup.send(bot.WARNING_NOT_A_MASTER, ephemeral=ESR_DEFAULT)
+            return False
+        if not bot.check_player(player.id):
+            await interaction.followup.send(f"@{player.name} is not registered as in the ACTIVE_PLAYER file!", ephemeral=ESR_DEFAULT)
+            return False
+    
     return True
 
 async def init_char_action(interaction: dc.Interaction, player: dc.Member, silent_reply:bool = True) -> bool:
     await interaction.response.defer(ephemeral=silent_reply)
     if not await check_player_or_master_respond(interaction, player, silent_reply): return False
     if player.id not in bot.PLAYER_CHARACTER_CACHE.keys(): 
-        bot.cache_player_character(player.id)
+        try:
+            bot.cache_player_character(player.id)
+        except exc.BotException as e:
+            print(e); silent_reply = ESR_DEFAULT
+            await interaction.followup.send('ERROR: Character caching failed. ' + e.message, ephemeral=ESR_DEFAULT)
+            return False
+        except Exception as e:
+            print(e); silent_reply = ESR_DEFAULT
+            await interaction.followup.send('UNEXPECTED ERROR: Character caching failed.', ephemeral=ESR_DEFAULT)
+            return False
+    
     return True
 
 class MyClient(dc.Client):
@@ -82,15 +97,6 @@ intents.message_content = True
 client = MyClient(intents=intents)
 tree = dc.app_commands.CommandTree(client)
 
-@tree.command(name="test", description="test command")
-async def test_command(
-    interaction: dc.Interaction
-):
-    await interaction.response.send_message('Hello World')
-    if bot.check_master(interaction.user.id):
-        print('All shall bow to you almighty master ' + interaction.user.display_name)
-    return
-
 @tree.command(name="list_masters", description="List all registered Gamemasters")
 async def list_masters(
     interaction: dc.Interaction,
@@ -119,10 +125,6 @@ async def list_players(
     if not await check_master_respond(interaction):
         return
     
-    #if not (bot.check_master(interaction.user.id)):
-    #    await interaction.followup.send(bot.WARNING_NOT_A_MASTER, ephemeral=True)
-    #    return
-
     out = 'Registered Players:\n'
 
     for user_id in bot.load_players():
@@ -328,6 +330,8 @@ async def remove_character(
     except exc.DirectoryNotFoundError as e:
         reply = "ERROR: " + e.message
         bot.create_player_dir(interaction.user.id)
+    except FileNotFoundError as e:
+        reply = f"ERROR: Character {file_name} does not exist in your directory"
     except Exception as e:
         print(e)
         reply = UE_DEFAULT_TEXT
@@ -345,7 +349,7 @@ async def show_info(
     if not await init_char_action(interaction, player, silent_reply): return
     
     char = bot.PLAYER_CHARACTER_CACHE[player.id]
-    
+
     await interaction.followup.send(f"```{char.showInfo()}```", ephemeral=silent_reply)
     return
 

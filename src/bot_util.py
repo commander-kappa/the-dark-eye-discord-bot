@@ -30,7 +30,7 @@ RES_PATH = path.join(DIR_PATH, '..', 'res')
 
 WARNING_EMPTY_MASTER_FILE = 'You have not entered any Gamemasters in the MASTER file. Please Enter the discord ID for all users that are suppossed to have Master permissions'
 WARNING_NOT_A_MASTER = "You are not registered in the MASTER file. Ask the bot host to add you manually or consult the documentation."
-WARNING_NOT_A_PLAYER = "You are not registered in the PLAYER file. Ask a registered Gamemaster to add you."
+WARNING_NOT_A_PLAYER = "You are not registered in the ACTIVE_PLAYER file. Ask a registered Gamemaster to add you."
 
 def validate_user_id(user_id:str, verbose:bool = True) -> bool:
     #INFO: I don't know the exact user ID length constraints, but they appear to me as 17-19 digits
@@ -91,6 +91,7 @@ def setup_res() -> None:
 def create_player_dir(id:int) -> None:
     makedirs(path.join(RES_PATH, 'Players'), exist_ok=True)
     makedirs(path.join(RES_PATH, 'Players', str(id)), exist_ok=True)
+    create_file_if_not_exists('ACTIVE_CHAR', path.join(RES_PATH, 'Players', str(id)))
 
 #TODO: make function that only returns valid masters?
 def load_masters() -> list:
@@ -182,7 +183,7 @@ def add_character(id:int, file_name:str, json_object:dict) -> None:
     if path.exists(character_path):
         raise exc.BotException(f"Character {file_name} already exists")
 
-    json_object = helper.recursive_dict_merge(helper.create_empty_json(), json_object)
+    json_object = parse_json.recursive_dict_merge(parse_json.create_empty_json(), json_object)
     with open(character_path, 'w') as file:
         file.write(json.dumps(json_object))
     
@@ -203,14 +204,14 @@ def change_character(player_id:int, character_file_name:str) -> None:
     with open(path.join(player_dir, 'ACTIVE_CHAR'), 'w') as f: 
         f.write(character_file_name)
 
-def get_player_character(player_id:int) -> str:
+def read_active_char_file(player_id:int) -> str:
     player_dir = path.join(RES_PATH, 'Players', str(player_id))
     if not path.exists(player_dir):
         raise exc.PlayerDirectoryNotFoundError(f"")
     
     active_char_path = path.join(player_dir, 'ACTIVE_CHAR')
     if not path.exists(active_char_path):
-        raise exc.ResFileNotFoundError('ACTIVE_CHAR')
+        raise exc.BotException("Player does not have a ACTIVE_CHAR file")
     with open(active_char_path, 'r') as file:
         return file.readline().replace('\n', '')
 
@@ -222,12 +223,21 @@ def remove_player_character(player_id:int, character_file_name:str) -> None:
 
 def cache_player_character(player_id:int) -> None:   
     player_dir = path.join(RES_PATH, 'Players', str(player_id))
-    file_name = get_player_character(player_id)
+    file_name = read_active_char_file(player_id)
+    #TODO: validate file_name
+    if file_name == '':
+        raise exc.BotException(f"Player <{player_id}> has selected no Character")
+
+    if file_name not in list_characters(player_id):
+        raise exc.BotException(f"Character \"{file_name}\" does not exist")
+
+    #TODO: Exception for get_json_from_file
     PLAYER_CHARACTER_CACHE[player_id] = character.Character(
         parse_json.get_json_from_file(
             path.join(player_dir, file_name)
         )
     )
+    print(f"SUCCESS: Cached \"{file_name}\" for <{player_id}>")
 
 def dice_roll_string(times:int, size:int) -> str:
     return f"Roll {times}d{size} = {dice.ROLL_DICE(times, size)}"

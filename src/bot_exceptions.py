@@ -1,6 +1,6 @@
-class ResFileNotFoundError(FileNotFoundError):
-    def __init__(self, file_name):
-        self.message = f"File res/{file_name} not found"
+class BotException(Exception):
+    def __init__(self, message):
+        self.message = message
         super().__init__(self.message)
 
 class DirectoryNotFoundError(FileNotFoundError):
@@ -18,9 +18,9 @@ class CharacterNotFoundError(FileNotFoundError):
         self.message = f"Character \"{char_name}\" not found"
         super().__init__(self.message)
 
-class BotException(Exception):
-    def __init__(self, message):
-        self.message = message
+class ResFileNotFoundError(BotException):
+    def __init__(self, file_name):
+        self.message = f"File res/{file_name} not found"
         super().__init__(self.message)
 
 class BotWarning(Exception):
