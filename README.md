@@ -1,23 +1,16 @@
 # The Dark Eye — Discord Bot
-Access your character sheet data (exported from an Optolith.json) and roll on your stats directly from Discord.
+This Discord bot is a utility for the 5th Edition of the fantasy themed [The Dark Eye](https://en.wikipedia.org/wiki/The_Dark_Eye_(role-playing_game)) (TDE) / 'Das Schwarze Auge (DSA)' german tabletop role-playing game. The code is directly based on my [CLI version of this project](https://codeberg.org/kappa-dev/the-dark-eye-cli-tool). With this tool players can either import their **JSON** character sheets created in [Optolith](https://optolith.app/en/download), a free graphical TDE5 character generation tool, or convert and import their completed **official deluxe character sheet PDF** (INFO: Because I have only ever got my hands on the german deluxe PDF, I could not implement a converter for the english version yet).
 
-[![Python](https://img.shields.io/badge/python-3.14%2B-blue)](https://www.python.org/)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Repo](https://img.shields.io/badge/repo-commander--kappa/the--dark--eye--discord--bot-blue)](https://codeberg.org/kappa-dev/the-dark-eye-discord-bot)
 
-Table of Contents
-- [About](#about)
+## Table of Contents
 - [Features](#features)
-- [Demo & Examples](#demo--examples)
+- [Stack](#stackk)
 - [Installation](#installation)
-- [Tech Stack](#tech-stack)
+- [Usage](#usage)
 - [Contributing](#contributing)
 - [Roadmap](#roadmap)
 - [License](#license)
 - [Contact](#contact)
-
-## About
-This Discord bot is a utility for the 5th Edition of the fantasy themed [The Dark Eye](https://en.wikipedia.org/wiki/The_Dark_Eye_(role-playing_game)) (TDE) / 'Das Schwarze Auge (DSA)' german tabletop role-playing game. The code is directly based on my [CLI version of this project](https://codeberg.org/kappa-dev/the-dark-eye-cli-tool). With this tool players can either import their **JSON** character sheets created in [Optolith](https://optolith.app/en/download), a free graphical TDE5 character generation tool, or convert and import their completed **official deluxe character sheet PDF** (INFO: Because I have only ever got my hands on the german deluxe PDF, I could not implement a converter for the english version yet).
 
 ## Features
 - Assign privileged **Gamemaster** roles, which can add or remove players.
@@ -28,7 +21,46 @@ This Discord bot is a utility for the 5th Edition of the fantasy themed [The Dar
 - Persistent character storage in a directory format.
 - Extensible command architecture to add new systems or roll types.
 
-## Demo & Examples
+## Stack
+
+- **Language**: [![Python](https://img.shields.io/badge/python-3.14%2B-blue?logo=python)](https://www.python.org/)  
+- **Discord Integration**: [![discord.py](https://img.shields.io/badge/discord.py-2.7%2B-blue?logo=discord)](https://discordpy.readthedocs.io/en/stable/)
+- **Data**: Stored in JSON files
+- **Recommended Build/Package Manager**: [UV](https://docs.astral.sh/uv/) 
+
+## Installation
+1. Clone the repo:
+```bash
+git clone https://codeberg.org/kappa-dev/the-dark-eye-discord-bot
+```
+
+2. Activate the virtual environment and install dependencies with [UV Python project manager](https://docs.astral.sh/uv/):
+```bash
+uv sync
+```
+
+3. Create a discord bot for your account on https://discord.com/developers/applications
+
+4. Run the bot and enter the token for your created discord bot:
+```bash
+uv run src/main.py
+```
+```text
+Creating /home/user/Development/the-dark-eye-discord-bot/src/../res/ACTIVE_PLAYER
+TOKEN file does not exist!
+Creating /home/user/Development/the-dark-eye-discord-bot/src/../res/TOKEN
+TOKEN file empty!
+Enter your discord bot TOKEN: 
+```
+5. Add Gamemasters to the MASTER file (either by answering the text prompt or by editing the file manually)
+```text
+Creating /home/user/Development/the-dark-eye-discord-bot/src/../res/MASTER
+You have not entered any Gamemasters in the MASTER file. Please Enter the discord ID for all users that are suppossed to have Master permissions
+You will now be prompted to enter all Gamemasters discord IDs. You may exit by typing 'exit'.
+Enter a discord user ID: 
+```
+
+## Usage 
 - Import:
 ```text
 /upload_character sheet.json [discord_user default:self]
@@ -116,43 +148,6 @@ Sinnesschärfe (Körper) [KL/IN/IN] BE:EVTL R:0    FW:9  ""
 10/13/13 x [15, 17, 17]-1 = FW:9 - 10 = -1
 (FAILURE) QS: 0
 ```
-
-## Installation
-1. Clone the repo:
-```bash
-git clone https://codeberg.org/kappa-dev/the-dark-eye-discord-bot
-```
-
-2. Activate the virtual environment and install dependencies with [UV Python project manager](https://docs.astral.sh/uv/):
-```bash
-uv sync
-```
-
-3. Create a discord bot for your account on https://discord.com/developers/applications
-
-4. Run the bot and enter the token for your created discord bot:
-```bash
-uv run src/main.py
-```
-```text
-Creating /home/user/Development/the-dark-eye-discord-bot/src/../res/ACTIVE_PLAYER
-TOKEN file does not exist!
-Creating /home/user/Development/the-dark-eye-discord-bot/src/../res/TOKEN
-TOKEN file empty!
-Enter your discord bot TOKEN: 
-```
-5. Add Gamemasters to the MASTER file (either by answering the text prompt or by editing the file manually)
-```text
-Creating /home/user/Development/the-dark-eye-discord-bot/src/../res/MASTER
-You have not entered any Gamemasters in the MASTER file. Please Enter the discord ID for all users that are suppossed to have Master permissions
-You will now be prompted to enter all Gamemasters discord IDs. You may exit by typing 'exit'.
-Enter a discord user ID: 
-```
-
-## Tech Stack
-- Language: Python (async)
-- Discord integration: discord.py 
-- Data: JSON parsing following the Optolith schema
 
 ## Contributing
 Contributions are welcome:
