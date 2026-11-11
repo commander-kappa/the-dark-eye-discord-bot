@@ -157,10 +157,11 @@ Contributions are welcome:
 4. Open a pull request with a clear description of changes and why they matter.
 
 ## Roadmap
-Planned or desirable enhancements:
 - Access to combat stats
 - improved Exception handling
 - command interface for pdf extraction
+- discord.py commandline support
+- Language Separation
 
 ## License
 This repository is provided under the GPL3.0 License. See the `LICENSE` file for details.

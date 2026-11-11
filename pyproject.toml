@@ -17,9 +17,9 @@ dependencies = [
     "idna==3.11",
     "multidict==6.7.1",
     "propcache==0.4.1",
-    "pymupdf==1.27.2.2",
+    "pymupdf==1.28.0",
     "pymysql==1.1.2",
-    "sqlalchemy==2.0.49",
+    "sqlalchemy==2.0.51",
     "typing-extensions==4.15.0",
     "yarl==1.23.0",
 ]
